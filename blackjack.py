@@ -1,15 +1,5 @@
 """
 This is the code for a blackjack game.
-
-Objects in this game:
-
-Deck
-Card
-
-Player
-Dealer(Player)
-
-GameManager?
 """
 
 from random import shuffle
