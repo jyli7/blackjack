@@ -15,11 +15,20 @@ GameManager?
 from random import shuffle
 from time import sleep
 
+def get_valid_response(query, valid_responses):
+    response = raw_input(query)
+    if response.lower() not in [r.lower() for r in valid_responses]:
+        print "That is not a valid response. Try again."
+        response = get_valid_response(query, valid_responses)
+
+    return response
+
 class Player:
-    def __init__(self, name):
+    def __init__(self, name, game):
         self.cards = []
         self.name = name
         self.busted = False
+        self.game = game
 
     def receive_card(self, card, is_face_up = True):
         card.is_face_up = is_face_up
@@ -44,15 +53,55 @@ class Player:
 
         return total
 
+    def ask_for_decision(self):
+        return get_valid_response("\nAttention {}!\nYou have {}. This totals {} points.\nWould you like to 'hit' or 'stay'? ".
+                                  format(self.name, self.cards_string(), self.points()),
+                                  ["hit", "stay"])
+
+    def bust(self):
+        print "\n{}, you have busted with {}. This totals {}!\n".format(self.name, self.cards_string(), self.points())
+        self.busted = True
+
+    def hit(self):
+        self.game.deck.deal_card_to(self)
+        if self.points() <= 21:
+            self.play()
+        else:
+            self.bust()
+
+    def stay(self):
+        print "{} is staying with {}".format(self.name, self.points())
+
     def play(self):
-        raw_input("{}: You have {}. This totals {} points. Would you like to 'hit' or 'stay'?".format(self.name,
-                                                                                                      self.cards_string(),
-                                                                                                      self.points())
-                  )
+        response = self.ask_for_decision()
+
+        while response.lower() != 'hit' and response.lower() != 'stay':
+            print "Not an acceptable response. You must 'hit' or 'stay'"
+            response = self.ask_for_decision()
+
+        if response.lower() == 'hit':
+            self.hit()
+        else:
+            self.stay()
+
 
 class Dealer(Player):
-    def __init__(self):
-        Player.__init__(self, "Dealer")
+    def __init__(self, game):
+        Player.__init__(self, "Dealer", game)
+
+    def play(self):
+        print "\nDealer is playing..."
+        sleep(0.5)
+        self.cards[0].is_face_up = True
+        print "Dealer has {} for a total of {}".format(self.cards_string(), self.points())
+        if self.points() <= 17:
+            print "Dealer is hitting..."
+            sleep(0.5)
+            self.hit()
+        else:
+            print "Dealer is staying..."
+            sleep(0.5)
+            self.stay()
 
 class Deck:
     def __init__(self):
@@ -68,7 +117,6 @@ class Deck:
         player.receive_card(card, is_face_up)
 
 class Card:
-
     score_mapping = {
         'A': [11, 1],
         'K': [10],
@@ -107,17 +155,17 @@ class Game:
     def __init__(self, num_players):
         self.players = []
         for i in range(0, num_players):
-            player = Player("Player {}".format(i + 1))
+            player = Player("Player {}".format(i + 1), self)
             self.players.append(player)
 
-        self.dealer = Dealer()
+        self.dealer = Dealer(self)
         self.deck = Deck()
         self.deck.shuffle_cards()
 
     def print_state(self):
         for player in self.players + [self.dealer]:
             print "{} has cards: {}".format(player.name, player.cards_string())
-            # sleep(1)
+            sleep(0.5)
 
         print
 
@@ -125,13 +173,13 @@ class Game:
         # Deal one card face up to each player, deal one card face DOWN to himself
         print "Dealing first card to players..."
         self.deal_card_to_all(first_card=True)
-        # sleep(1)
+        sleep(0.5)
         self.print_state()
 
         # Deal one card face up to each player, deal one card face UP to himself
         print "Dealing second card to players..."
         self.deal_card_to_all()
-        # sleep(1)
+        sleep(0.5)
 
         self.print_state()
 
@@ -141,41 +189,58 @@ class Game:
 
         self.deck.deal_card_to(self.dealer, is_face_up = not first_card)
 
-    def players_play(self):
-        for player in self.players:
+    def play_round(self):
+        for player in [player for player in self.players if not player.busted]:
             player.play()
 
-def play_game(num_players):
+        self.dealer.play()
+
+    def resolve(self):
+        print "\n ---GAME RESULTS--- \n"
+        sleep(0.5)
+
+        if self.dealer.busted:
+            print "Dealer has busted, so all non-busted players win!"
+            print "Winners: {}".format(", ".join([player.name for player in self.players if not player.busted]))
+            print "Busted players: {}".format(", ".join([player.name for player in self.players if player.busted]))
+
+        else:
+            for player in self.players:
+                if player.busted:
+                    print "Loser! {} has busted".format(player.name)
+                elif player.points() < self.dealer.points():
+                    print "Loser! {} has {} points. This is less than the dealer's total of {}.".format(player.name, player.points(), self.dealer.points())
+                elif player.points() == self.dealer.points():
+                    print "Tie! {} has {} points. This ties the dealer's total of {}.".format(player.name, player.points(), self.dealer.points())
+                else:
+                    print "Winner! {} has {} points. This is more than the dealer's total of {}. Congrats!".format(player.name, player.points(), self.dealer.points())
+
+
+def play_game():
+    num_players = get_num_players()
+    print "Great! Let's play with {} players.".format(num_players)
+
     game = Game(num_players)
     game.deal_initial_pair()
-    game.players_play()
-    game.dealer_play()
+    game.play_round()
     game.resolve()
 
-    # Now each player gets to decide what to do, either hitting n times and busting or hitting n times and standing
-    # After each player is done, but the dealer turns over his hole card. Then, he plays based on a rule. If the dealer has a soft 17 or below, dealer must hit.
-    # If dealer busts, all players left in the game win.
-    # If dealer does not bust, players left that have higher point totals win, and players left with lower point totals lose. Same point total -> draw.
+    response = get_valid_response("Would you like to play again? ('yes' or 'no'): ", ['yes', 'no'])
+    if response.lower() == "yes":
+        play_game()
+    else:
+        print "Thanks for playing!"
 
 
 def get_num_players():
-    raw_num_players = raw_input("How many players are playing today? (Please enter a number between 1 and 6): ")
+    num_players_char = get_valid_response("How many players are playing today? (Please enter a number between 1 and 6): ",
+                                         ['1', '2', '3', '4', '5', '6'])
 
-    try:
-        num_players = int(raw_num_players)
-        if num_players <= 0 or num_players > 6:
-            raise TypeError
-    except:
-        print "That was not a valid input. Please try again."
-        get_num_players()
-    else:
-        return num_players
+    return int(num_players_char)
+
 
 def main():
-    num_players = get_num_players()
-    print "Great! Let's play with {} players.".format(num_players)
-    play_game(num_players)
-
+    play_game()
 
 if __name__ == "__main__":
 	main()
