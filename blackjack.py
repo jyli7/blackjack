@@ -13,6 +13,7 @@ GameManager?
 """
 
 from random import shuffle
+from time import sleep
 
 class Player:
     def __init__(self, name):
@@ -31,9 +32,7 @@ class Deck:
     def __init__(self):
         self.suits = ['Diamonds', 'Hearts', 'Clubs', 'Spades']
         self.ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
-        self.cards = []
-        for suit, rank in zip(self.suits, self.ranks):
-            self.cards.append(Card(suit, rank))
+        self.cards = [Card(suit, rank) for suit in self.suits for rank in self.ranks]
 
     def shuffle_cards(self):
         shuffle(self.cards)
@@ -67,12 +66,16 @@ class Game:
     def print_state(self):
         for player in self.players + [self.dealer]:
             print "{} has cards: {}".format(player.name, [card.to_string() for card in player.cards])
+            sleep(1)
 
+        print
 
 def play_game(num_players):
     game = Game(num_players)
 
     # Deal one card face up to each player, deal one card face DOWN to himself
+    print "Dealing first card to players..."
+    sleep(2)
     for player in game.players:
         game.deck.deal_card_to(player, is_face_up = True)
 
@@ -81,6 +84,17 @@ def play_game(num_players):
     game.print_state()
 
     # Deal one card face up to each player, deal one card face UP to himself
+    print "Dealing second card to players..."
+    sleep(2)
+
+    for player in game.players:
+        game.deck.deal_card_to(player, is_face_up = True)
+
+    game.deck.deal_card_to(game.dealer, is_face_up = True)
+
+    sleep(1)
+    game.print_state()
+
 
     # Now each player gets to decide what to do, either hitting n times and busting or hitting n times and standing
     # After each player is done, but the dealer turns over his hole card. Then, he plays based on a rule. If the dealer has a soft 17 or below, dealer must hit.
