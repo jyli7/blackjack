@@ -12,8 +12,81 @@ Dealer(Player)
 GameManager?
 """
 
+from random import shuffle
+
+class Player:
+    def __init__(self, name):
+        self.cards = []
+        self.name = name
+
+    def receive_card(self, card, is_face_up = True):
+        card.is_face_up = is_face_up
+        self.cards.append(card)
+
+class Dealer(Player):
+    def __init__(self):
+        Player.__init__(self, "Dealer")
+
+class Deck:
+    def __init__(self):
+        self.suits = ['Diamonds', 'Hearts', 'Clubs', 'Spades']
+        self.ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
+        self.cards = []
+        for suit, rank in zip(self.suits, self.ranks):
+            self.cards.append(Card(suit, rank))
+
+    def shuffle_cards(self):
+        shuffle(self.cards)
+
+    def deal_card_to(self, player, is_face_up = True):
+        card = self.cards.pop()
+        player.receive_card(card, is_face_up)
+
+class Card:
+    def __init__(self, suit, rank):
+        self.suit = suit
+        self.rank = rank
+        self.is_face_up = None
+
+    def to_string(self):
+        if not self.is_face_up:
+            return "*"
+        else:
+            return "{}{}".format(self.rank, self.suit)
+
+class Game:
+    def __init__(self, num_players):
+        self.players = []
+        for i in range(0, num_players):
+            player = Player("Player {}".format(i))
+            self.players.append(player)
+
+        self.dealer = Dealer()
+        self.deck = Deck()
+
+    def print_state(self):
+        for player in self.players + [self.dealer]:
+            print "{} has cards: {}".format(player.name, [card.to_string() for card in player.cards])
+
+
 def play_game(num_players):
-    pass
+    game = Game(num_players)
+
+    # Deal one card face up to each player, deal one card face DOWN to himself
+    for player in game.players:
+        game.deck.deal_card_to(player, is_face_up = True)
+
+    game.deck.deal_card_to(game.dealer, is_face_up = False)
+
+    game.print_state()
+
+    # Deal one card face up to each player, deal one card face UP to himself
+
+    # Now each player gets to decide what to do, either hitting n times and busting or hitting n times and standing
+    # After each player is done, but the dealer turns over his hole card. Then, he plays based on a rule. If the dealer has a soft 17 or below, dealer must hit.
+    # If dealer busts, all players left in the game win.
+    # If dealer does not bust, players left that have higher point totals win, and players left with lower point totals lose. Same point total -> draw.
+
 
 def get_num_players():
     raw_num_players = raw_input("How many players are playing today? (Please enter a number between 1 and 6): ")
