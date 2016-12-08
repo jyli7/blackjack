@@ -5,31 +5,36 @@ This is the code for a blackjack game.
 from random import shuffle
 from time import sleep
 
+
 def get_valid_response(query, valid_responses):
-    response = raw_input(query)
-    if response.lower() not in [r.lower() for r in valid_responses]:
-        print "That is not a valid response. Try again."
-        response = get_valid_response(query, valid_responses)
+    while True:
+        response = raw_input(query).lower()
 
-    return response
+        if response in [r.lower() for r in valid_responses]:
+            return response
+        else:
+            print "That is not a valid response. Try again."
 
-class Player:
+
+class Player(object):
     def __init__(self, name, game):
         self.cards = []
         self.name = name
         self.busted = False
         self.game = game
 
-    def receive_card(self, card, is_face_up = True):
+    def __str__(self):
+        return "{:10} {:>20} {:>4}".format(self.name, " ".join([str(card) for card in self.cards]), self.points())
+
+    def receive_card(self, card, is_face_up=True):
         card.is_face_up = is_face_up
         self.cards.append(card)
 
     def cards_string(self):
         return [card.to_string() for card in self.cards]
 
-
     def raw_points(self):
-        return sum([card.points() for card in self.cards])
+        return sum(card.points() for card in self.cards)
 
     def points(self):
         total = self.raw_points()
@@ -44,8 +49,8 @@ class Player:
         return total
 
     def ask_for_decision(self):
-        return get_valid_response("\nAttention {}!\nYou have {}. This totals {} points.\nWould you like to 'hit' or 'stay'? ".
-                                  format(self.name, self.cards_string(), self.points()),
+        print(self)
+        return get_valid_response("Would you like to 'hit' or 'stay'?",
                                   ["hit", "stay"])
 
     def bust(self):
@@ -63,13 +68,13 @@ class Player:
         print "{} is staying with {}".format(self.name, self.points())
 
     def play(self):
-        response = self.ask_for_decision()
+        response = self.ask_for_decision().lower()
 
-        while response.lower() != 'hit' and response.lower() != 'stay':
+        while response != 'hit' and response != 'stay':
             print "Not an acceptable response. You must 'hit' or 'stay'"
             response = self.ask_for_decision()
 
-        if response.lower() == 'hit':
+        if response == 'hit':
             self.hit()
         else:
             self.stay()
@@ -93,7 +98,8 @@ class Dealer(Player):
             sleep(0.5)
             self.stay()
 
-class Deck:
+
+class Deck(object):
     def __init__(self):
         self.suits = ['Diamonds', 'Hearts', 'Clubs', 'Spades']
         self.ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
@@ -102,11 +108,12 @@ class Deck:
     def shuffle_cards(self):
         shuffle(self.cards)
 
-    def deal_card_to(self, player, is_face_up = True):
+    def deal_card_to(self, player, is_face_up=True):
         card = self.cards.pop()
         player.receive_card(card, is_face_up)
 
-class Card:
+
+class Card(object):
     score_mapping = {
         'A': [11, 1],
         'K': [10],
@@ -129,11 +136,8 @@ class Card:
         self.is_face_up = None
         self.secondary_value = False
 
-    def to_string(self):
-        if not self.is_face_up:
-            return "*"
-        else:
-            return "{}{}".format(self.rank, self.suit)
+    def __str__(self):
+        return "{}{}".format(self.rank, self.suit)
 
     def points(self):
         if self.secondary_value:
@@ -141,7 +145,8 @@ class Card:
         else:
             return Card.score_mapping[self.rank][0]
 
-class Game:
+
+class Game(object):
     def __init__(self, num_players):
         self.players = []
         for i in range(0, num_players):
@@ -152,32 +157,16 @@ class Game:
         self.deck = Deck()
         self.deck.shuffle_cards()
 
-    def print_state(self):
-        for player in self.players + [self.dealer]:
-            print "{} has cards: {}".format(player.name, player.cards_string())
-            sleep(0.5)
-
-        print
-
     def deal_initial_pair(self):
         # Deal one card face up to each player, deal one card face DOWN to himself
-        print "Dealing first card to players..."
         self.deal_card_to_all(first_card=True)
-        sleep(0.5)
-        self.print_state()
-
-        # Deal one card face up to each player, deal one card face UP to himself
-        print "Dealing second card to players..."
         self.deal_card_to_all()
-        sleep(0.5)
 
-        self.print_state()
-
-    def deal_card_to_all(self, first_card = False):
+    def deal_card_to_all(self, first_card=False):
         for player in self.players:
-            self.deck.deal_card_to(player, is_face_up = True)
+            self.deck.deal_card_to(player, is_face_up=True)
 
-        self.deck.deal_card_to(self.dealer, is_face_up = not first_card)
+        self.deck.deal_card_to(self.dealer, is_face_up=not first_card)
 
     def play_round(self):
         for player in [player for player in self.players if not player.busted]:
@@ -205,7 +194,6 @@ class Game:
                 else:
                     print "Winner! {} has {} points. This is more than the dealer's total of {}. Congrats!".format(player.name, player.points(), self.dealer.points())
 
-
 def play_game():
     num_players = get_num_players()
     print "Great! Let's play with {} players.".format(num_players)
@@ -215,8 +203,8 @@ def play_game():
     game.play_round()
     game.resolve()
 
-    response = get_valid_response("Would you like to play again? ('yes' or 'no'): ", ['yes', 'no'])
-    if response.lower() == "yes":
+    response = get_valid_response("Would you like to play again? ('yes' or 'no'): ", ['yes', 'no']).lower()
+    if response == "yes":
         play_game()
     else:
         print "Thanks for playing!"
@@ -228,9 +216,5 @@ def get_num_players():
 
     return int(num_players_char)
 
-
-def main():
-    play_game()
-
 if __name__ == "__main__":
-	main()
+    play_game()
